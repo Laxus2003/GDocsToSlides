@@ -1,0 +1,97 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.myproject</groupId>
+  <artifactId>gdocs-to-slides</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  
+  
+  <dependencies>
+    <!-- Google OAuth Client -->
+    <dependency>
+        <groupId>com.google.oauth-client</groupId>
+        <artifactId>google-oauth-client</artifactId>
+        <version>1.34.1</version>
+    </dependency>
+
+    <dependency>
+        <groupId>com.google.oauth-client</groupId>
+        <artifactId>google-oauth-client-jetty</artifactId>
+        <version>1.34.1</version>
+    </dependency>
+
+    <!-- Google Docs API -->
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-docs</artifactId>
+      <version>v1-rev20250325-2.0.0</version>
+    </dependency>
+
+    <!-- Google Slides API -->
+    <dependency>
+       <groupId>com.google.apis</groupId>
+       <artifactId>google-api-services-slides</artifactId>
+       <version>v1-rev20250401-2.0.0</version>
+   </dependency>
+   
+   <!-- Liferay Document Library Google Drive API -->
+    <dependency>
+       <groupId>com.liferay</groupId>
+       <artifactId>com.liferay.document.library.google.drive.api</artifactId>
+       <version>2.0.31</version>
+    </dependency>
+   
+        
+   <!-- google http client-->
+   <dependency>
+      <groupId>com.google.http-client</groupId>
+      <artifactId>google-http-client</artifactId>
+      <version>1.44.1</version>
+   </dependency>
+   
+   <!-- apache -->
+   <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.3</version>
+   </dependency>
+   
+</dependencies>
+
+<repositories>
+    <repository>
+        <id>google-api-services</id>
+        <url>https://googleapis.dev/java/maven/</url>
+    </repository>
+     <repository>
+        <id>liferay-public</id>
+        <url>https://repository.liferay.com/nexus/content/repositories/liferay-public-releases/</url>
+    </repository>
+</repositories>
+
+  <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>21</release> <!-- because i'm' using JDK 21 -->
+        </configuration>
+      </plugin>
+       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <configuration>
+          <mainClass>com.myproject.gdocs2slides.Main</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
