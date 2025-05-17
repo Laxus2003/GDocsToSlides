@@ -67,7 +67,7 @@ public class SlidesWriter {
                     }
                 }
 
-                // Add section title to the title placeholder
+                // Add section title to the placeholder
                 if (titlePlaceholderId != null) {
                     requests.add(new Request()
                         .setInsertText(new InsertTextRequest()
