@@ -13,7 +13,7 @@ public class Main {
             Slides slidesService = GoogleServiceUtil.getSlidesService();
             
             // Test document ID
-            String docId = "";
+            String docId = "docs ID"; // Replace with your actual document ID
             
             System.out.println("Starting document analysis for ID: " + docId);
             
@@ -21,19 +21,19 @@ public class Main {
             List<ContentElement> content = DocsReader.extractContent(docsService, docId);
             
             // Convert to slides
-            String presentationUrl = SlidesWriter.convertToSlides(slidesService, "Converted Google Doc", content);
+            String presentationUrl = SlidesWriter.convert(docId);
             
             // Print results
-            System.out.println("\n Document Structure Breakdown:");
+            System.out.println("\nDocument Structure Breakdown:");
             int currentSection = -1;
             int elementCount = 0;
             
             for (ContentElement element : content) {
                 if (element.getType() == ContentElement.ElementType.SECTION_TITLE) {
                     currentSection = element.getSectionLevel();
-                    System.out.printf("\n SECTION %d: %s\n", 
-                                   currentSection + 1, 
-                                   element.getText());
+                    System.out.printf("\nSECTION %d: %s\n", 
+                                     currentSection + 1, 
+                                     element.getText());
                 } else {
                     System.out.printf("  │ %03d. %s\n", 
                                     ++elementCount, 
@@ -49,14 +49,15 @@ public class Main {
                 }
             }
             
-            System.out.println("\n   Analysis complete! Found:");
+            System.out.println("\nAnalysis complete! Found:");
             System.out.println("   - Total sections: " + (currentSection + 1));
             System.out.println("   - Total content elements: " + elementCount);
+            System.out.println("Presentation URL: " + presentationUrl);
             
         } catch (Exception e) {
-            System.err.println("\n Error processing document:");
+            System.err.println("\nError processing document:");
             e.printStackTrace();
-            System.err.println("\n Troubleshooting Tips:");
+            System.err.println("\nTroubleshooting Tips:");
             System.err.println("1. Verify your Google Docs ID is correct");
             System.err.println("2. Check credentials.json exists in resources");
             System.exit(1);
@@ -66,13 +67,13 @@ public class Main {
     private static String formatElement(ContentElement element) {
         switch (element.getType()) {
             case IMAGE:
-                return "Image (ID: " + element.getImageUrl() + ")";
+                return "Image (URL: " + element.getImageUrl() + ")";
             case HEADING_1:
                 return element.getText();
             case HEADING_2:
-                return  element.getText();
+                return element.getText();
             case HEADING_3:
-                return  element.getText();
+                return element.getText();
             case TABLE:
                 return "Table (" + element.getRows() + "x" + element.getColumns() + ")";
             default:
