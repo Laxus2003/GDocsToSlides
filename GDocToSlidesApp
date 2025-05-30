@@ -1,0 +1,72 @@
+package com.myproject.gdocs2slides;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+
+public class GDocToSlidesApp {
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> createAndShowGUI());
+    }
+
+    private static void createAndShowGUI() {
+        JFrame frame = new JFrame("GDoc to Slides Converter");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(500, 300);
+        frame.setLayout(new BorderLayout());
+
+        JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
+        JLabel docIdLabel = new JLabel("Google Doc ID:");
+        JTextField docIdField = new JTextField();
+        JButton convertButton = new JButton("Convert");
+
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(docIdLabel, BorderLayout.WEST);
+        topPanel.add(docIdField, BorderLayout.CENTER);
+        topPanel.add(convertButton, BorderLayout.EAST);
+
+        JTextArea outputArea = new JTextArea();
+        outputArea.setLineWrap(true);
+        outputArea.setWrapStyleWord(true);
+        outputArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(outputArea);
+
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        inputPanel.add(topPanel, BorderLayout.NORTH);
+
+        frame.add(inputPanel, BorderLayout.NORTH);
+        frame.add(scrollPane, BorderLayout.CENTER);
+
+        // Action listener for the button
+        convertButton.addActionListener((ActionEvent e) -> {
+            String docId = docIdField.getText().trim();
+            if (docId.isEmpty()) {
+                outputArea.setText("Please enter a Google Doc ID.");
+                return;
+            }
+
+            convertButton.setEnabled(false);
+            outputArea.setText("Converting...");
+
+            // Run conversion in a background thread
+            new Thread(() -> {
+                try {
+                    String slidesUrl = SlidesWriter.convert(docId); // Your own method
+                    SwingUtilities.invokeLater(() -> {
+                        outputArea.setText("Presentation created:\n" + slidesUrl);
+                        convertButton.setEnabled(true);
+                    });
+                } catch (Exception ex) {
+                    SwingUtilities.invokeLater(() -> {
+                        outputArea.setText("Error:\n" + ex.getMessage());
+                        convertButton.setEnabled(true);
+                    });
+                    ex.printStackTrace();
+                }
+            }).start();
+        });
+
+        frame.setVisible(true);
+    }
+}
