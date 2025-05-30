@@ -52,18 +52,6 @@
       <artifactId>poi-ooxml</artifactId>
       <version>5.2.3</version>
     </dependency>
-   
-    <!-- JavaFX -->
-    <dependency>
-        <groupId>org.openjfx</groupId>
-        <artifactId>javafx-controls</artifactId>
-        <version>21</version>
-    </dependency>
-    <dependency>
-        <groupId>org.openjfx</groupId>
-        <artifactId>javafx-fxml</artifactId>
-        <version>21</version>
-    </dependency>
   </dependencies>
 
   <repositories>
@@ -104,22 +92,7 @@
           </execution>
         </executions>
         <configuration>
-          <mainClass>com.myproject.gdocs2slides.Main</mainClass> <!-- For CLI execution -->
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.openjfx</groupId>
-        <artifactId>javafx-maven-plugin</artifactId>
-        <version>0.0.8</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <mainClass>com.myproject.gdocs2slides.GDocToSlidesApp</mainClass> <!-- For JavaFX GUI -->
+          <mainClass>com.myproject.gdocs2slides.GDocToSlidesApp</mainClass> <!-- Updated to run the Swing app -->
         </configuration>
       </plugin>
     </plugins>
