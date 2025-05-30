@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        try {
+        /*try {
             // Initialize services
             Docs docsService = GoogleServiceUtil.getDocsService();
             Slides slidesService = GoogleServiceUtil.getSlidesService();
@@ -78,6 +78,6 @@ public class Main {
                 return "Table (" + element.getRows() + "x" + element.getColumns() + ")";
             default:
                 return element.getText();
-        }
+        }*/
     }
 }
