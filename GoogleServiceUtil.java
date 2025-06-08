@@ -14,6 +14,7 @@ import com.google.api.services.slides.v1.Slides;
 import com.google.api.services.docs.v1.DocsScopes;
 import com.google.api.services.slides.v1.SlidesScopes;
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.auth.oauth2.TokenResponseException;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -49,21 +50,45 @@ public class GoogleServiceUtil {
                 .build();
     }
 
-    private static Credential getCredentials(final HttpTransport HTTP_TRANSPORT) throws Exception {
+    private static Credential getCredentials(final HttpTransport httpTransport) throws Exception {
         InputStream in = GoogleServiceUtil.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
-            throw new Exception("Resource not found: " + CREDENTIALS_FILE_PATH);
+            throw new Exception("Resource not found: " + CREDENTIALS_FILE_PATH + ". Ensure credentials.json is in the classpath.");
         }
 
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
+                httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(Paths.get(TOKENS_DIRECTORY_PATH).toFile()))
                 .setAccessType("offline")
                 .build();
 
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8889).build();
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+        Credential credential = null;
+
+        try {
+            credential = flow.loadCredential("user");
+            if (credential == null || !credential.refreshToken()) {
+                System.out.println("No valid token found or refresh failed. Starting authorization process...");
+                credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+                System.out.println("Authorization successful. New token stored.");
+            } else {
+                System.out.println("Using existing valid token.");
+            }
+        } catch (TokenResponseException e) {
+            if (e.getDetails() != null && "invalid_grant".equals(e.getDetails().getError())) {
+                System.out.println("Token expired or revoked. Removing old token and re-authorizing...");
+                flow.getCredentialDataStore().delete("user"); // Clear invalid token
+                credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+                System.out.println("Re-authorization successful. New token stored.");
+            } else {
+                throw e; // Re-throw other token errors
+            }
+        } finally {
+            receiver.stop();
+        }
+
+        return credential;
     }
 }
