@@ -1,65 +1,79 @@
 package com.myproject.gdocs2slides;
-
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 
 public class GDocToSlidesApp {
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> createAndShowGUI());
+        SwingUtilities.invokeLater(GDocToSlidesApp::createAndShowGUI);
     }
 
     private static void createAndShowGUI() {
-        JFrame frame = new JFrame("GDoc to Slides Converter");
+        JFrame frame = new JFrame("📝 GDoc to Slides Converter");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(500, 300);
-        frame.setLayout(new BorderLayout());
+        frame.setSize(600, 400);
+        frame.setMinimumSize(new Dimension(500, 350));
+        frame.setLocationRelativeTo(null); // Center on screen
 
-        JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
-        JLabel docIdLabel = new JLabel("Google Doc ID:");
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        // === Input Panel ===
+        JPanel inputPanel = new JPanel(new BorderLayout(10, 10));
+        inputPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(),
+                "Enter Google Doc ID", TitledBorder.LEFT, TitledBorder.TOP));
+
         JTextField docIdField = new JTextField();
+        docIdField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        docIdField.setToolTipText("Paste the Google Document ID here");
+
         JButton convertButton = new JButton("Convert");
+        convertButton.setPreferredSize(new Dimension(100, 30));
+        convertButton.setFont(new Font("SansSerif", Font.BOLD, 13));
 
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.add(docIdLabel, BorderLayout.WEST);
-        topPanel.add(docIdField, BorderLayout.CENTER);
-        topPanel.add(convertButton, BorderLayout.EAST);
+        inputPanel.add(docIdField, BorderLayout.CENTER);
+        inputPanel.add(convertButton, BorderLayout.EAST);
 
+        // === Output Area ===
         JTextArea outputArea = new JTextArea();
+        outputArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
         outputArea.setEditable(false);
+        outputArea.setBackground(new Color(245, 245, 245));
+        outputArea.setBorder(BorderFactory.createTitledBorder("Output"));
+
         JScrollPane scrollPane = new JScrollPane(outputArea);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
-        inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        inputPanel.add(topPanel, BorderLayout.NORTH);
+        // === Add components to main panel ===
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        frame.add(inputPanel, BorderLayout.NORTH);
-        frame.add(scrollPane, BorderLayout.CENTER);
-
-        // Action listener for the button
+        // === Action ===
         convertButton.addActionListener((ActionEvent e) -> {
             String docId = docIdField.getText().trim();
             if (docId.isEmpty()) {
-                outputArea.setText("Please enter a Google Doc ID.");
+                outputArea.setText("⚠ Please enter a Google Doc ID.");
                 return;
             }
 
             convertButton.setEnabled(false);
-            outputArea.setText("Converting...");
+            outputArea.setText("🔄 Converting... Please wait.");
 
-            // Run conversion in a background thread
             new Thread(() -> {
                 try {
-                    String slidesUrl = SlidesWriter.convert(docId); // Your own method
+                    String slidesUrl = SlidesWriter.convert(docId); // your implementation
                     SwingUtilities.invokeLater(() -> {
-                        outputArea.setText("Presentation created:\n" + slidesUrl);
+                        outputArea.setText("✅ Presentation created:\n" + slidesUrl);
                         convertButton.setEnabled(true);
                     });
                 } catch (Exception ex) {
                     SwingUtilities.invokeLater(() -> {
-                        outputArea.setText("Error:\n" + ex.getMessage());
+                        outputArea.setText("❌ Error:\n" + ex.getMessage());
                         convertButton.setEnabled(true);
                     });
                     ex.printStackTrace();
@@ -67,6 +81,8 @@ public class GDocToSlidesApp {
             }).start();
         });
 
+        // Finalize
+        frame.setContentPane(mainPanel);
         frame.setVisible(true);
     }
 }
