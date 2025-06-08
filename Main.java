@@ -7,13 +7,13 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        /*try {
+            /*try {
             // Initialize services
             Docs docsService = GoogleServiceUtil.getDocsService();
             Slides slidesService = GoogleServiceUtil.getSlidesService();
             
             // Test document ID
-            String docId = "docs ID"; // Replace with your actual document ID
+            String docId = "18WN5hl8uTY7NxzTjFBKiSvRmvRJdZs3AqRlb3INsvrQ"; // Replace with document ID
             
             System.out.println("Starting document analysis for ID: " + docId);
             
