@@ -92,7 +92,7 @@
           </execution>
         </executions>
         <configuration>
-          <mainClass>com.myproject.gdocs2slides.GDocToSlidesApp</mainClass> <!-- Updated to run the Swing app -->
+          <mainClass>com.myproject.gdocs2slides.GDocToSlidesApp</mainClass> 
         </configuration>
       </plugin>
     </plugins>
