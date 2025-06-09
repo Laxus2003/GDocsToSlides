@@ -11,7 +11,7 @@ import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.slides.v1.Slides;
 import com.google.api.services.slides.v1.model.*;
 import com.myproject.gdocs2slides.model.ContentElement;
-
+import java.util.Arrays;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -23,18 +23,13 @@ import java.util.UUID;
 
 public class SlidesWriter {
 
-    // Define the maximum words per slide
-    private static final int MAX_WORDS_PER_SLIDE = 600;
-
-    // Font size thresholds
-    private static final int TITLE_LENGTH_THRESHOLD = 50;
-    private static final double TITLE_FONT_SIZE_DEFAULT = 32.0;
-    private static final double TITLE_FONT_SIZE_SMALL = 24.0;
+    private static final int MAX_LINES_PER_SLIDE = 20;
+    private static final int MAX_WORDS_PER_SLIDE = 300;
+    private static final double TITLE_FONT_SIZE = 32.0;
     private static final double BODY_FONT_SIZE_DEFAULT = 18.0;
     private static final double BODY_FONT_SIZE_MEDIUM = 14.0;
     private static final double BODY_FONT_SIZE_SMALL = 12.0;
 
-    // Method to download an image from a URL using authenticated credentials
     private static byte[] downloadImage(String imageUrl, HttpTransport httpTransport, Slides slidesService) throws IOException {
         HttpRequestFactory requestFactory = httpTransport.createRequestFactory(new HttpRequestInitializer() {
             @Override
@@ -42,7 +37,6 @@ public class SlidesWriter {
                 slidesService.getRequestFactory().getInitializer().initialize(request);
             }
         });
-
         HttpRequest request = requestFactory.buildGetRequest(new GenericUrl(imageUrl));
         HttpResponse response = request.execute();
         System.out.println("Downloaded image from: " + imageUrl + ", size: " + response.getContent().available() + " bytes");
@@ -54,7 +48,6 @@ public class SlidesWriter {
             throw new IllegalArgumentException("Content elements cannot be null or empty");
         }
 
-        // Add timestamp to title 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         String timestamp = sdf.format(new Date());
         String fullTitle = title + " - " + timestamp;
@@ -63,231 +56,117 @@ public class SlidesWriter {
 
         List<Request> requests = new ArrayList<>();
         Set<String> usedIds = new HashSet<>();
-        String currentSlideId = null;
-        String titlePlaceholderId = null;
-        String bodyPlaceholderId = null;
         String lastSectionTitle = "";
+        List<ContentElement> currentParagraphs = new ArrayList<>();
 
-        for (ContentElement element : contentElements) {
-            if (element.getType() == ContentElement.ElementType.SECTION_TITLE) {
+        for (int i = 0; i < contentElements.size(); i++) {
+            ContentElement element = contentElements.get(i);
+            if (element.getType() == ContentElement.ElementType.SECTION_TITLE) {  // Changed from SECTION_HEADER to SECTION_TITLE
+                if (!currentParagraphs.isEmpty()) {
+                    createSlidesForParagraphs(slidesService, presentationId, usedIds, lastSectionTitle, currentParagraphs);
+                    currentParagraphs.clear();
+                }
                 lastSectionTitle = element.getText();
-                // Create a new slide for section title
-                currentSlideId = generateUniqueId("slide_", usedIds);
-                requests.add(new Request()
-                    .setCreateSlide(new CreateSlideRequest()
-                        .setObjectId(currentSlideId)
-                        .setSlideLayoutReference(new LayoutReference().setPredefinedLayout("TITLE_AND_BODY"))));
-
-                // Execute the slide creation
-                slidesService.presentations()
-                    .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                    .execute();
-                requests.clear();
-
-                // Retrieve placeholder IDs
-                Presentation updatedPresentation = slidesService.presentations().get(presentationId).execute();
-                for (Page slide : updatedPresentation.getSlides()) {
-                    if (slide.getObjectId().equals(currentSlideId)) {
-                        for (PageElement el : slide.getPageElements()) {
-                            if (el.getShape() != null && el.getShape().getPlaceholder() != null) {
-                                String type = el.getShape().getPlaceholder().getType();
-                                if ("TITLE".equals(type) || "CENTERED_TITLE".equals(type)) {
-                                    titlePlaceholderId = el.getObjectId();
-                                } else if ("BODY".equals(type)) {
-                                    bodyPlaceholderId = el.getObjectId();
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Add the section title
-                if (titlePlaceholderId != null) {
-                    String titleText = element.getText();
-                    requests.add(new Request()
-                        .setInsertText(new InsertTextRequest()
-                            .setObjectId(titlePlaceholderId)
-                            .setInsertionIndex(0)
-                            .setText(titleText)));
-                    // Adjust title font size based on length
-                    double titleFontSize = titleText.length() > TITLE_LENGTH_THRESHOLD ? TITLE_FONT_SIZE_SMALL : TITLE_FONT_SIZE_DEFAULT;
-                    requests.add(setFontSizeRequest(titlePlaceholderId, titleFontSize));
-                }
-                // Execute title insertion
-                slidesService.presentations()
-                    .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                    .execute();
-                requests.clear();
             } else if (element.getType() == ContentElement.ElementType.PARAGRAPH) {
                 String[] words = element.getText().split("\\s+");
-                int wordCount = words.length;
-                int startIndex = 0;
-
-                while (startIndex < wordCount) {
-                    int endIndex = Math.min(startIndex + MAX_WORDS_PER_SLIDE, wordCount);
-                    StringBuilder slideTextBuilder = new StringBuilder();
-                    for (int i = startIndex; i < endIndex; i++) {
-                        slideTextBuilder.append(words[i]).append(" ");
+                int paraWordCount = words.length;
+                if (paraWordCount > MAX_WORDS_PER_SLIDE) {
+                    if (!currentParagraphs.isEmpty()) {
+                        createSlidesForParagraphs(slidesService, presentationId, usedIds, lastSectionTitle, currentParagraphs);
+                        currentParagraphs.clear();
                     }
-                    String slideText = slideTextBuilder.toString().trim();
+                    String paraText = element.getText();
+                    String[] paraWords = paraText.split("\\s+");
+                    StringBuilder chunk = new StringBuilder();
+                    int chunkWordCount = 0;
+                    for (String word : paraWords) {
+                        if (chunkWordCount + 1 > MAX_WORDS_PER_SLIDE) {
+                            createSlideWithText(slidesService, presentationId, usedIds, lastSectionTitle, chunk.toString());
+                            chunk.setLength(0);
+                            chunkWordCount = 0;
+                        }
+                        if (chunk.length() > 0) {
+                            chunk.append(" ");
+                        }
+                        chunk.append(word);
+                        chunkWordCount++;
+                    }
+                    if (chunk.length() > 0) {
+                        createSlideWithText(slidesService, presentationId, usedIds, lastSectionTitle, chunk.toString());
+                    }
+                } else {
+                    currentParagraphs.add(element);
+                }
+            } else {
+                if (!currentParagraphs.isEmpty()) {
+                    createSlidesForParagraphs(slidesService, presentationId, usedIds, lastSectionTitle, currentParagraphs);
+                    currentParagraphs.clear();
+                }
+                String currentSlideId = generateUniqueId("slide_", usedIds);
+                requests.add(new Request()
+                    .setCreateSlide(new CreateSlideRequest()
+                        .setObjectId(currentSlideId)
+                        .setSlideLayoutReference(new LayoutReference().setPredefinedLayout("BLANK"))));
+                slidesService.presentations()
+                    .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
+                    .execute();
+                requests.clear();
 
-                    // Create a new slide for the paragraph chunk
-                    currentSlideId = generateUniqueId("slide_", usedIds);
-                    requests.add(new Request()
-                        .setCreateSlide(new CreateSlideRequest()
-                            .setObjectId(currentSlideId)
-                            .setSlideLayoutReference(new LayoutReference().setPredefinedLayout("TITLE_AND_BODY"))));
-
-                    // Execute the slide creation
-                    slidesService.presentations()
-                        .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                        .execute();
-                    requests.clear();
-
-                    // Retrieve placeholder IDs
-                    Presentation updatedPresentation = slidesService.presentations().get(presentationId).execute();
-                    for (Page slide : updatedPresentation.getSlides()) {
-                        if (slide.getObjectId().equals(currentSlideId)) {
-                            for (PageElement el : slide.getPageElements()) {
-                                if (el.getShape() != null && el.getShape().getPlaceholder() != null) {
-                                    String type = el.getShape().getPlaceholder().getType();
-                                    if ("TITLE".equals(type) || "CENTERED_TITLE".equals(type)) {
-                                        titlePlaceholderId = el.getObjectId();
-                                    } else if ("BODY".equals(type)) {
-                                        bodyPlaceholderId = el.getObjectId();
-                                    }
-                                }
+                if (element.getType() == ContentElement.ElementType.IMAGE) {
+                    String imageUrl = element.getImageUrl();
+                    System.out.println("Processing image: " + imageUrl);
+                    try {
+                        byte[] imageData = downloadImage(imageUrl, new NetHttpTransport(), slidesService);
+                        String imageId = generateUniqueId("image_", usedIds);
+                        requests.add(new Request()
+                            .setCreateImage(new CreateImageRequest()
+                                .setObjectId(imageId)
+                                .setUrl(imageUrl)
+                                .setElementProperties(new PageElementProperties()
+                                    .setPageObjectId(currentSlideId)
+                                    .setTransform(new AffineTransform()
+                                        .setScaleX(1.0)
+                                        .setScaleY(1.0)
+                                        .setTranslateX(0.0)
+                                        .setTranslateY(0.0)
+                                        .setUnit("PT")))));
+                        System.out.println("Image inserted on its own slide: " + currentSlideId);
+                    } catch (IOException e) {
+                        System.err.println("Failed to download or insert image: " + imageUrl);
+                        e.printStackTrace();
+                    }
+                } else if (element.getType() == ContentElement.ElementType.TABLE) {
+                    List<List<String>> tableData = element.getTableData();
+                    if (tableData != null && !tableData.isEmpty()) {
+                        int rows = tableData.size();
+                        int cols = tableData.get(0).size();
+                        String tableId = generateUniqueId("table_", usedIds);
+                        requests.add(new Request()
+                            .setCreateTable(new CreateTableRequest()
+                                .setObjectId(tableId)
+                                .setElementProperties(new PageElementProperties()
+                                    .setPageObjectId(currentSlideId))
+                                .setRows(rows)
+                                .setColumns(cols)));
+                        for (int r = 0; r < rows; r++) {
+                            for (int c = 0; c < cols; c++) {
+                                requests.add(new Request()
+                                    .setInsertText(new InsertTextRequest()
+                                        .setObjectId(tableId)
+                                        .setCellLocation(new TableCellLocation().setRowIndex(r).setColumnIndex(c))
+                                        .setText(tableData.get(r).get(c))));
+                                requests.add(new Request()
+                                    .setUpdateTextStyle(new UpdateTextStyleRequest()
+                                        .setObjectId(tableId)
+                                        .setCellLocation(new TableCellLocation().setRowIndex(r).setColumnIndex(c))
+                                        .setTextRange(new Range().setType("ALL"))
+                                        .setStyle(new TextStyle()
+                                            .setFontSize(new Dimension().setMagnitude(BODY_FONT_SIZE_SMALL).setUnit("PT")))
+                                        .setFields("fontSize")));
                             }
                         }
                     }
-
-                    // Add the title (with "Continued" if not the first chunk)
-                    String titleText = startIndex == 0 ? lastSectionTitle : "(Continued) " + lastSectionTitle;
-                    if (titlePlaceholderId != null) {
-                        requests.add(new Request()
-                            .setInsertText(new InsertTextRequest()
-                                .setObjectId(titlePlaceholderId)
-                                .setInsertionIndex(0)
-                                .setText(titleText)));
-                        // Adjust title font size based on length
-                        double titleFontSize = titleText.length() > TITLE_LENGTH_THRESHOLD ? TITLE_FONT_SIZE_SMALL : TITLE_FONT_SIZE_DEFAULT;
-                        requests.add(setFontSizeRequest(titlePlaceholderId, titleFontSize));
-                    }
-
-                    // Add the paragraph text
-                    if (bodyPlaceholderId != null) {
-                        requests.add(new Request()
-                            .setInsertText(new InsertTextRequest()
-                                .setObjectId(bodyPlaceholderId)
-                                .setInsertionIndex(0)
-                                .setText(slideText)));
-                        // Set font size for body text
-                        double bodyFontSize = slideText.length() > 800 ? BODY_FONT_SIZE_SMALL :
-                                             slideText.length() > 500 ? BODY_FONT_SIZE_MEDIUM : BODY_FONT_SIZE_DEFAULT;
-                        requests.add(setFontSizeRequest(bodyPlaceholderId, bodyFontSize));
-                    }
-
-                    // Execute the requests for this slide
-                    slidesService.presentations()
-                        .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                        .execute();
-                    requests.clear();
-
-                    // Update for the next chunk
-                    startIndex = endIndex;
                 }
-            } else if (element.getType() == ContentElement.ElementType.TABLE) {
-                // Create a new slide for the table
-                currentSlideId = generateUniqueId("slide_", usedIds);
-                requests.add(new Request()
-                    .setCreateSlide(new CreateSlideRequest()
-                        .setObjectId(currentSlideId)
-                        .setSlideLayoutReference(new LayoutReference().setPredefinedLayout("BLANK"))));
-
-                // Execute the slide creation
-                slidesService.presentations()
-                    .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                    .execute();
-                requests.clear();
-
-                // Add the table to the slide
-                List<List<String>> tableData = element.getTableData();
-                if (tableData != null && !tableData.isEmpty()) {
-                    int rows = tableData.size();
-                    int cols = tableData.get(0).size();
-                    String tableId = generateUniqueId("table_", usedIds);
-                    requests.add(new Request()
-                        .setCreateTable(new CreateTableRequest()
-                            .setObjectId(tableId)
-                            .setElementProperties(new PageElementProperties()
-                                .setPageObjectId(currentSlideId))
-                            .setRows(rows)
-                            .setColumns(cols)));
-
-                    for (int r = 0; r < rows; r++) {
-                        for (int c = 0; c < cols; c++) {
-                            requests.add(new Request()
-                                .setInsertText(new InsertTextRequest()
-                                    .setObjectId(tableId)
-                                    .setCellLocation(new TableCellLocation().setRowIndex(r).setColumnIndex(c))
-                                    .setText(tableData.get(r).get(c))));
-                            // Adjust font size for table cells
-                            requests.add(new Request()
-                                .setUpdateTextStyle(new UpdateTextStyleRequest()
-                                    .setObjectId(tableId)
-                                    .setCellLocation(new TableCellLocation().setRowIndex(r).setColumnIndex(c))
-                                    .setTextRange(new Range().setType("ALL"))
-                                    .setStyle(new TextStyle()
-                                        .setFontSize(new Dimension().setMagnitude(BODY_FONT_SIZE_SMALL).setUnit("PT")))
-                                    .setFields("fontSize")));
-                        }
-                    }
-                }
-
-                // Execute the requests for this slide
-                slidesService.presentations()
-                    .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                    .execute();
-                requests.clear();
-            } else if (element.getType() == ContentElement.ElementType.IMAGE) {
-                // Create a new slide for the image
-                currentSlideId = generateUniqueId("slide_", usedIds);
-                requests.add(new Request()
-                    .setCreateSlide(new CreateSlideRequest()
-                        .setObjectId(currentSlideId)
-                        .setSlideLayoutReference(new LayoutReference().setPredefinedLayout("BLANK"))));
-
-                // Execute the slide creation
-                slidesService.presentations()
-                    .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
-                    .execute();
-                requests.clear();
-
-                // Add the image to the slide
-                String imageUrl = element.getImageUrl();
-                System.out.println("Processing image: " + imageUrl);
-                try {
-                    byte[] imageData = downloadImage(imageUrl, new NetHttpTransport(), slidesService);
-                    String imageId = generateUniqueId("image_", usedIds);
-                    requests.add(new Request()
-                        .setCreateImage(new CreateImageRequest()
-                            .setObjectId(imageId)
-                            .setUrl(imageUrl)
-                            .setElementProperties(new PageElementProperties()
-                                .setPageObjectId(currentSlideId)
-                                .setTransform(new AffineTransform()
-                                    .setScaleX(1.0)
-                                    .setScaleY(1.0)
-                                    .setTranslateX(100.0)
-                                    .setTranslateY(100.0)
-                                    .setUnit("PT")))));
-                    System.out.println("Image inserted on its own slide: " + currentSlideId);
-                } catch (IOException e) {
-                    System.err.println("Failed to download or insert image: " + imageUrl);
-                    e.printStackTrace();
-                }
-
-                // Execute the requests for this slide
                 slidesService.presentations()
                     .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
                     .execute();
@@ -295,9 +174,97 @@ public class SlidesWriter {
             }
         }
 
+        if (!currentParagraphs.isEmpty()) {
+            createSlidesForParagraphs(slidesService, presentationId, usedIds, lastSectionTitle, currentParagraphs);
+        }
+
         String presentationUrl = "https://docs.google.com/presentation/d/" + presentationId + "/edit";
         System.out.println("Created presentation: " + presentationUrl);
         return presentationUrl;
+    }
+
+    private static void createSlidesForParagraphs(Slides slidesService, String presentationId, Set<String> usedIds, String lastSectionTitle, List<ContentElement> paragraphs) throws IOException {
+        StringBuilder allText = new StringBuilder();
+        for (ContentElement para : paragraphs) {
+            if (allText.length() > 0) {
+                allText.append("\n");
+            }
+            allText.append(para.getText());
+        }
+        String[] lines = allText.toString().split("\n");
+        List<String> slideLines = new ArrayList<>();
+        int slideWordCount = 0;
+
+        for (String line : lines) {
+            String[] words = line.split("\\s+");
+            int lineWordCount = words.length;
+            if (slideLines.size() >= MAX_LINES_PER_SLIDE || slideWordCount + lineWordCount > MAX_WORDS_PER_SLIDE) {
+                String chunkText = String.join("\n", slideLines);
+                createSlideWithText(slidesService, presentationId, usedIds, lastSectionTitle, chunkText);
+                slideLines.clear();
+                slideWordCount = 0;
+            }
+            slideLines.add(line);
+            slideWordCount += lineWordCount;
+        }
+        if (!slideLines.isEmpty()) {
+            String chunkText = String.join("\n", slideLines);
+            createSlideWithText(slidesService, presentationId, usedIds, lastSectionTitle, chunkText);
+        }
+    }
+
+    private static void createSlideWithText(Slides slidesService, String presentationId, Set<String> usedIds, String titleText, String bodyText) throws IOException {
+        String slideId = generateUniqueId("slide_", usedIds);
+        List<Request> requests = new ArrayList<>();
+        requests.add(new Request()
+            .setCreateSlide(new CreateSlideRequest()
+                .setObjectId(slideId)
+                .setSlideLayoutReference(new LayoutReference().setPredefinedLayout("TITLE_AND_BODY"))));
+        slidesService.presentations()
+            .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
+            .execute();
+        requests.clear();
+
+        Presentation presentation = slidesService.presentations().get(presentationId).execute();
+        String titlePlaceholderId = null;
+        String bodyPlaceholderId = null;
+        for (Page slide : presentation.getSlides()) {
+            if (slide.getObjectId().equals(slideId)) {
+                for (PageElement el : slide.getPageElements()) {
+                    if (el.getShape() != null && el.getShape().getPlaceholder() != null) {
+                        String placeholderType = el.getShape().getPlaceholder().getType();
+                        if ("TITLE".equals(placeholderType) || "CENTERED_TITLE".equals(placeholderType)) {
+                            titlePlaceholderId = el.getObjectId();
+                        } else if ("BODY".equals(placeholderType)) {
+                            bodyPlaceholderId = el.getObjectId();
+                        }
+                    }
+                }
+            }
+        }
+
+        if (titleText != null && !titleText.isEmpty() && titlePlaceholderId != null) {
+            requests.add(new Request()
+                .setInsertText(new InsertTextRequest()
+                    .setObjectId(titlePlaceholderId)
+                    .setInsertionIndex(0)
+                    .setText(titleText)));
+            requests.add(setFontSizeRequest(titlePlaceholderId, TITLE_FONT_SIZE));
+        }
+        if (bodyText != null && !bodyText.isEmpty() && bodyPlaceholderId != null) {
+            requests.add(new Request()
+                .setInsertText(new InsertTextRequest()
+                    .setObjectId(bodyPlaceholderId)
+                    .setInsertionIndex(0)
+                    .setText(bodyText)));
+            double bodyFontSize = bodyText.length() > 800 ? BODY_FONT_SIZE_SMALL :
+                                 bodyText.length() > 500 ? BODY_FONT_SIZE_MEDIUM : BODY_FONT_SIZE_DEFAULT;
+            requests.add(setFontSizeRequest(bodyPlaceholderId, bodyFontSize));
+        }
+
+        slidesService.presentations()
+            .batchUpdate(presentationId, new BatchUpdatePresentationRequest().setRequests(requests))
+            .execute();
     }
 
     private static Request setFontSizeRequest(String objectId, double sizePt) {
@@ -322,7 +289,6 @@ public class SlidesWriter {
     public static String convert(String docId) throws Exception {
         Docs docsService = GoogleServiceUtil.getDocsService();
         Slides slidesService = GoogleServiceUtil.getSlidesService();
-
         List<ContentElement> content = DocsReader.extractContent(docsService, docId);
         String title = "Converted Google Doc";
         return convertToSlides(slidesService, title, content);
