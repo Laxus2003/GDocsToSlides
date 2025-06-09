@@ -23,7 +23,7 @@ import java.util.UUID;
 
 public class SlidesWriter {
 
-    private static final int MAX_LINES_PER_SLIDE = 20;
+    private static final int MAX_LINES_PER_SLIDE = 8;
     private static final int MAX_WORDS_PER_SLIDE = 300;
     private static final double TITLE_FONT_SIZE = 32.0;
     private static final double BODY_FONT_SIZE_DEFAULT = 18.0;
@@ -61,7 +61,7 @@ public class SlidesWriter {
 
         for (int i = 0; i < contentElements.size(); i++) {
             ContentElement element = contentElements.get(i);
-            if (element.getType() == ContentElement.ElementType.SECTION_TITLE) {  // Changed from SECTION_HEADER to SECTION_TITLE
+            if (element.getType() == ContentElement.ElementType.SECTION_TITLE) {
                 if (!currentParagraphs.isEmpty()) {
                     createSlidesForParagraphs(slidesService, presentationId, usedIds, lastSectionTitle, currentParagraphs);
                     currentParagraphs.clear();
