@@ -34,6 +34,7 @@ public class GoogleServiceUtil {
     );
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 
+    // Returns a configured Docs service instance with authenticated credentials
     public static Docs getDocsService() throws Exception {
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         Credential credentials = getCredentials(httpTransport);
@@ -42,6 +43,7 @@ public class GoogleServiceUtil {
                 .build();
     }
 
+    // Returns a configured Slides service instance with authenticated credentials
     public static Slides getSlidesService() throws Exception {
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         Credential credentials = getCredentials(httpTransport);
@@ -50,10 +52,12 @@ public class GoogleServiceUtil {
                 .build();
     }
 
+    // Retrieves or generates OAuth2 credentials for API access
     private static Credential getCredentials(final HttpTransport httpTransport) throws Exception {
         InputStream in = GoogleServiceUtil.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
-            throw new Exception("Resource not found: " + CREDENTIALS_FILE_PATH + ". Ensure credentials.json is in the classpath.");
+            throw new Exception("Resource not found: " + CREDENTIALS_FILE_PATH + ". Ensure credentials.json "
+            		                                                           + "is in the classpath.");
         }
 
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
