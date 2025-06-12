@@ -30,7 +30,12 @@ public class SlidesWriter {
     private static final double BODY_FONT_SIZE_MEDIUM = 14.0;
     private static final double BODY_FONT_SIZE_SMALL = 12.0;
 
-    private static byte[] downloadImage(String imageUrl, HttpTransport httpTransport, Slides slidesService) throws IOException {
+    
+     // Downloads an image from the specified URL using the provided HttpTransport and Slides service.
+     
+    private static byte[] downloadImage(String imageUrl, HttpTransport httpTransport, Slides slidesService) 
+    		throws IOException {
+    	
         HttpRequestFactory requestFactory = httpTransport.createRequestFactory(new HttpRequestInitializer() {
             @Override
             public void initialize(HttpRequest request) throws IOException {
@@ -39,11 +44,17 @@ public class SlidesWriter {
         });
         HttpRequest request = requestFactory.buildGetRequest(new GenericUrl(imageUrl));
         HttpResponse response = request.execute();
-        System.out.println("Downloaded image from: " + imageUrl + ", size: " + response.getContent().available() + " bytes");
+        System.out.println("Downloaded image from: " + imageUrl + ", size: " + response.getContent().available() 
+        		+" bytes");
         return response.getContent().readAllBytes();
     }
 
-    public static String convertToSlides(Slides slidesService, String title, List<ContentElement> contentElements) throws IOException {
+    
+     // Converts a list of content elements into a Google Slides presentation.
+     
+    public static String convertToSlides(Slides slidesService, String title, List<ContentElement> contentElements) 
+    		throws IOException {
+    	
         if (contentElements == null || contentElements.isEmpty()) {
             throw new IllegalArgumentException("Content elements cannot be null or empty");
         }
@@ -183,6 +194,9 @@ public class SlidesWriter {
         return presentationUrl;
     }
 
+    
+     // Creates slides for a list of paragraphs, splitting them based on line and word limits.
+     
     private static void createSlidesForParagraphs(Slides slidesService, String presentationId, Set<String> usedIds, String lastSectionTitle, List<ContentElement> paragraphs) throws IOException {
         StringBuilder allText = new StringBuilder();
         for (ContentElement para : paragraphs) {
@@ -213,6 +227,9 @@ public class SlidesWriter {
         }
     }
 
+    
+     // Creates a single slide with a title and body text, adjusting font size based on content length.
+     
     private static void createSlideWithText(Slides slidesService, String presentationId, Set<String> usedIds, String titleText, String bodyText) throws IOException {
         String slideId = generateUniqueId("slide_", usedIds);
         List<Request> requests = new ArrayList<>();
@@ -267,6 +284,9 @@ public class SlidesWriter {
             .execute();
     }
 
+    
+    // Creates a request to set the font size for text in a specified object.
+    
     private static Request setFontSizeRequest(String objectId, double sizePt) {
         return new Request()
             .setUpdateTextStyle(new UpdateTextStyleRequest()
@@ -277,6 +297,9 @@ public class SlidesWriter {
                 .setFields("fontSize"));
     }
 
+    
+     // Generates a unique ID with a prefix, ensuring it’s not already used.
+    
     private static String generateUniqueId(String prefix, Set<String> usedIds) {
         String id;
         do {
@@ -286,6 +309,9 @@ public class SlidesWriter {
         return id;
     }
 
+    
+      //Converts a Google Doc to a Google Slides presentation using a default title.
+     
     public static String convert(String docId) throws Exception {
         Docs docsService = GoogleServiceUtil.getDocsService();
         Slides slidesService = GoogleServiceUtil.getSlidesService();
