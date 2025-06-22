@@ -3,9 +3,15 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GDocToSlidesApp {
+
+    private static String presentationLink = null;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(GDocToSlidesApp::createAndShowGUI);
@@ -16,64 +22,107 @@ public class GDocToSlidesApp {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(600, 400);
         frame.setMinimumSize(new Dimension(500, 350));
-        frame.setLocationRelativeTo(null); // Center on screen
+        frame.setLocationRelativeTo(null);
+
+        frame.getContentPane().setBackground(new Color(20, 20, 20));
+        frame.getRootPane().setBorder(BorderFactory.createLineBorder(new Color(40, 40, 40), 5));
 
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        mainPanel.setBackground(new Color(20, 20, 20));
 
-        // === Input Panel ===
+        // Input Panel
         JPanel inputPanel = new JPanel(new BorderLayout(10, 10));
-        inputPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(),
-                "Enter Google Doc ID", TitledBorder.LEFT, TitledBorder.TOP));
+        inputPanel.setBackground(new Color(30, 30, 30));
+        inputPanel.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(40, 40, 40), 2),
+                "Enter Google Doc URL or ID", TitledBorder.LEFT, TitledBorder.TOP, null, Color.WHITE));
 
         JTextField docIdField = new JTextField();
         docIdField.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        docIdField.setToolTipText("Paste the Google Document ID here");
+        docIdField.setForeground(Color.WHITE);
+        docIdField.setBackground(new Color(40, 40, 40));
+        docIdField.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 50), 1));
+        docIdField.setToolTipText("Paste the Google Document URL or ID here");
 
         JButton convertButton = new JButton("Convert");
         convertButton.setPreferredSize(new Dimension(100, 30));
         convertButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        convertButton.setForeground(Color.WHITE);
+        convertButton.setBackground(new Color(50, 50, 50));
+        convertButton.setBorder(BorderFactory.createLineBorder(new Color(40, 40, 40), 2));
+
+        JLabel infoLabel = new JLabel("You can paste the full URL or just the ID.", SwingConstants.CENTER);
+        infoLabel.setForeground(Color.WHITE);
+        infoLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
         inputPanel.add(docIdField, BorderLayout.CENTER);
         inputPanel.add(convertButton, BorderLayout.EAST);
+        inputPanel.add(infoLabel, BorderLayout.SOUTH);
 
-        // === Output Area ===
+        // Output Area
         JTextArea outputArea = new JTextArea();
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
         outputArea.setEditable(false);
-        outputArea.setBackground(new Color(245, 245, 245));
-        outputArea.setBorder(BorderFactory.createTitledBorder("Output"));
+        outputArea.setForeground(Color.WHITE);
+        outputArea.setBackground(new Color(25, 25, 25));
+        outputArea.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(40, 40, 40), 2),
+                "Output", TitledBorder.LEFT, TitledBorder.TOP, null, Color.WHITE));
+        outputArea.setText("Paste a Google Doc URL or ID and click Convert to generate a Slides presentation.");
 
         JScrollPane scrollPane = new JScrollPane(outputArea);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
-        // === Add components to main panel ===
+        // Copy Link Button
+        JButton copyButton = new JButton("Copy Link");
+        copyButton.setEnabled(false);
+        copyButton.setForeground(Color.WHITE);
+        copyButton.setBackground(new Color(50, 50, 50));
+        copyButton.setBorder(BorderFactory.createLineBorder(new Color(40, 40, 40), 2));
+        copyButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        copyButton.setToolTipText("Copy the presentation link to clipboard");
+
+        JPanel copyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        copyPanel.setBackground(new Color(20, 20, 20));
+        copyPanel.add(copyButton);
+
+        // Add components to main panel
         mainPanel.add(inputPanel, BorderLayout.NORTH);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(copyPanel, BorderLayout.SOUTH);
 
-        // === Action ===
+        // Convert Button Action
         convertButton.addActionListener((ActionEvent e) -> {
-            String docId = docIdField.getText().trim();
-            if (docId.isEmpty()) {
-                outputArea.setText("⚠ Please enter a Google Doc ID.");
+            String input = docIdField.getText().trim();
+            if (input.isEmpty()) {
+                outputArea.setText("⚠ Please enter a Google Doc URL or ID.");
                 return;
             }
-
+            String docId = extractDocId(input);
+            if (docId.isEmpty()) {
+                outputArea.setText("⚠ Invalid Google Doc URL or ID.");
+                return;
+            }
             convertButton.setEnabled(false);
+            copyButton.setEnabled(false);
+            presentationLink = null;
             outputArea.setText("🔄 Converting... Please wait.");
-
             new Thread(() -> {
                 try {
-                    String slidesUrl = SlidesWriter.convert(docId); // your implementation
+                    String slidesUrl = SlidesWriter.convert(docId);
                     SwingUtilities.invokeLater(() -> {
                         outputArea.setText("✅ Presentation created:\n" + slidesUrl);
+                        presentationLink = slidesUrl;
+                        copyButton.setEnabled(true);
                         convertButton.setEnabled(true);
                     });
                 } catch (Exception ex) {
                     SwingUtilities.invokeLater(() -> {
                         outputArea.setText("❌ Error:\n" + ex.getMessage());
+                        copyButton.setEnabled(false);
                         convertButton.setEnabled(true);
                     });
                     ex.printStackTrace();
@@ -81,8 +130,35 @@ public class GDocToSlidesApp {
             }).start();
         });
 
-        // Finalize
+        // Copy Button Action
+        copyButton.addActionListener(e -> {
+            if (presentationLink != null) {
+                StringSelection selection = new StringSelection(presentationLink);
+                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                clipboard.setContents(selection, null);
+                JOptionPane.showMessageDialog(frame, "Link copied to clipboard!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(frame, "No link to copy!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
         frame.setContentPane(mainPanel);
         frame.setVisible(true);
+    }
+
+    private static String extractDocId(String input) {
+        if (input.contains("docs.google.com/document/d/")) {
+            Pattern pattern = Pattern.compile("/d/([a-zA-Z0-9_-]+)");
+            Matcher matcher = pattern.matcher(input);
+            if (matcher.find()) {
+                return matcher.group(1);
+            } else {
+                return "";
+            }
+        } else if (input.matches("[a-zA-Z0-9_-]+")) {
+            return input;
+        } else {
+            return "";
+        }
     }
 }
