@@ -9,35 +9,46 @@ import java.awt.event.ActionEvent;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/*La classe GDocToSlidesApp fournit une interface graphique Swing pour convertir un Google Doc en présentation Google Slides,
+ * permettant à l'utilisateur de saisir un ID ou une URL de document et de copier le lien de la présentation générée.
+ */
 public class GDocToSlidesApp {
 
     private static String presentationLink = null;
 
+    /* Point d'entrée principal de l'application.
+*/
     public static void main(String[] args) {
+        // Exécute la création de l'interface graphique sur le thread de distribution des événements
         SwingUtilities.invokeLater(GDocToSlidesApp::createAndShowGUI);
     }
 
+    /*Crée et affiche l'interface graphique de l'application.*/
     private static void createAndShowGUI() {
+        // Initialisation de la fenêtre principale
         JFrame frame = new JFrame("📝 GDoc to Slides Converter");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(600, 400);
         frame.setMinimumSize(new Dimension(500, 350));
         frame.setLocationRelativeTo(null);
 
+        // Configuration de l'apparence de la fenêtre
         frame.getContentPane().setBackground(new Color(20, 20, 20));
         frame.getRootPane().setBorder(BorderFactory.createLineBorder(new Color(40, 40, 40), 5));
 
+        // Création du panneau principal avec une disposition en bordure
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         mainPanel.setBackground(new Color(20, 20, 20));
 
-        // Input Panel
+        // Panneau d'entrée pour l'URL ou l'ID du document
         JPanel inputPanel = new JPanel(new BorderLayout(10, 10));
         inputPanel.setBackground(new Color(30, 30, 30));
         inputPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(40, 40, 40), 2),
                 "Enter Google Doc URL or ID", TitledBorder.LEFT, TitledBorder.TOP, null, Color.WHITE));
 
+        // Champ de texte pour l'entrée de l'URL ou de l'ID
         JTextField docIdField = new JTextField();
         docIdField.setFont(new Font("SansSerif", Font.PLAIN, 14));
         docIdField.setForeground(Color.WHITE);
@@ -45,6 +56,7 @@ public class GDocToSlidesApp {
         docIdField.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 50), 1));
         docIdField.setToolTipText("Paste the Google Document URL or ID here");
 
+        // Bouton pour lancer la conversion
         JButton convertButton = new JButton("Convert");
         convertButton.setPreferredSize(new Dimension(100, 30));
         convertButton.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -52,6 +64,7 @@ public class GDocToSlidesApp {
         convertButton.setBackground(new Color(50, 50, 50));
         convertButton.setBorder(BorderFactory.createLineBorder(new Color(40, 40, 40), 2));
 
+        // Étiquette d'information pour l'utilisateur
         JLabel infoLabel = new JLabel("You can paste the full URL or just the ID.", SwingConstants.CENTER);
         infoLabel.setForeground(Color.WHITE);
         infoLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
@@ -60,7 +73,7 @@ public class GDocToSlidesApp {
         inputPanel.add(convertButton, BorderLayout.EAST);
         inputPanel.add(infoLabel, BorderLayout.SOUTH);
 
-        // Output Area
+        // Zone de texte pour afficher les résultats
         JTextArea outputArea = new JTextArea();
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
         outputArea.setLineWrap(true);
@@ -76,7 +89,7 @@ public class GDocToSlidesApp {
         JScrollPane scrollPane = new JScrollPane(outputArea);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
-        // Copy Link Button
+        // Bouton pour copier le lien de la présentation
         JButton copyButton = new JButton("Copy Link");
         copyButton.setEnabled(false);
         copyButton.setForeground(Color.WHITE);
@@ -89,13 +102,14 @@ public class GDocToSlidesApp {
         copyPanel.setBackground(new Color(20, 20, 20));
         copyPanel.add(copyButton);
 
-        // Add components to main panel
+        // Ajout des composants au panneau principal
         mainPanel.add(inputPanel, BorderLayout.NORTH);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         mainPanel.add(copyPanel, BorderLayout.SOUTH);
 
-        // Convert Button Action
+        // Action du bouton de conversion
         convertButton.addActionListener((ActionEvent e) -> {
+            // Récupération et validation de l'entrée utilisateur
             String input = docIdField.getText().trim();
             if (input.isEmpty()) {
                 outputArea.setText("⚠ Please enter a Google Doc URL or ID.");
@@ -106,13 +120,16 @@ public class GDocToSlidesApp {
                 outputArea.setText("⚠ Invalid Google Doc URL or ID.");
                 return;
             }
+            // Désactivation des boutons pendant la conversion
             convertButton.setEnabled(false);
             copyButton.setEnabled(false);
             presentationLink = null;
             outputArea.setText("🔄 Converting... Please wait.");
+            // Lancement de la conversion dans un thread séparé
             new Thread(() -> {
                 try {
                     String slidesUrl = SlidesWriter.convert(docId);
+                    // Mise à jour de l'interface graphique avec le résultat
                     SwingUtilities.invokeLater(() -> {
                         outputArea.setText("✅ Presentation created:\n" + slidesUrl);
                         presentationLink = slidesUrl;
@@ -120,6 +137,7 @@ public class GDocToSlidesApp {
                         convertButton.setEnabled(true);
                     });
                 } catch (Exception ex) {
+                    // Gestion des erreurs lors de la conversion
                     SwingUtilities.invokeLater(() -> {
                         outputArea.setText("❌ Error:\n" + ex.getMessage());
                         copyButton.setEnabled(false);
@@ -130,8 +148,9 @@ public class GDocToSlidesApp {
             }).start();
         });
 
-        // Copy Button Action
+        // Action du bouton de copie
         copyButton.addActionListener(e -> {
+            // Copie du lien de la présentation dans le presse-papiers
             if (presentationLink != null) {
                 StringSelection selection = new StringSelection(presentationLink);
                 Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -146,8 +165,11 @@ public class GDocToSlidesApp {
         frame.setVisible(true);
     }
 
+    /* Extrait l'ID du document Google à partir d'une URL ou d'un ID direct.*/
     private static String extractDocId(String input) {
+        // Vérification si l'entrée est une URL Google Docs
         if (input.contains("docs.google.com/document/d/")) {
+            // Extraction de l'ID à l'aide d'une expression régulière
             Pattern pattern = Pattern.compile("/d/([a-zA-Z0-9_-]+)");
             Matcher matcher = pattern.matcher(input);
             if (matcher.find()) {
@@ -156,6 +178,7 @@ public class GDocToSlidesApp {
                 return "";
             }
         } else if (input.matches("[a-zA-Z0-9_-]+")) {
+            // Si l'entrée est un ID valide, la retourner directement
             return input;
         } else {
             return "";
