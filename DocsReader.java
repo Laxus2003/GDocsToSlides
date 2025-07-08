@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+//La classe DocsReader extrait le contenu d'un document Google Docs et le convertit en une liste d'éléments de contenu structurés.
 public class DocsReader {
 
     /**
